@@ -245,7 +245,7 @@ def route_update_identity(
 ) -> PersonOnlyResponse | ErrorResponse:
     # Only the keys actually present in the body are updated (is_minor maps to
     # the column of the same name).
-    fields = {k: body[k] for k in UpdateBody.__annotations__ if k in body}  # type: ignore[literal-required]
+    fields: dict[str, object] = {k: body[k] for k in UpdateBody.__annotations__ if k in body}  # type: ignore[literal-required]
     if not fields:
         return {"error": "no fields to update"}
     if "status" in fields:

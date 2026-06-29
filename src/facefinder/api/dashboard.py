@@ -1,7 +1,8 @@
-from fastapi import APIRouter
+from fastapi import APIRouter, Depends
 from typing_extensions import TypedDict
 
-from facefinder.data import Faces, Images, Persons
+from facefinder.api.deps import casefile_service
+from facefinder.services.casefile import CasefileService
 
 router = APIRouter(prefix="/dashboard", tags=["dashboard"])
 
@@ -22,13 +23,14 @@ class DashboardResponse(TypedDict):
 
 
 @router.get("")
-def route_dashboard() -> DashboardResponse:
+def route_dashboard(
+    svc: CasefileService = Depends(casefile_service),
+) -> DashboardResponse:
+    data = svc.dashboard()
     return {
-        "images": Images.stats(),
-        "faces_unassigned": Faces.count_unidentified(),
-        # ponytail: counting via list() is fine at this scale; add a COUNT query
-        # if the person table ever grows past a few thousand rows.
-        "people": len(Persons.all()),
+        "images": data["images"],
+        "faces_unassigned": data["faces_unassigned"],
+        "people": data["people"],
         "recent": [
             {
                 "id": img.id,
@@ -37,6 +39,6 @@ def route_dashboard() -> DashboardResponse:
                 "processed": img.processed_at is not None,
                 "uploaded_at": str(img.uploaded_at),
             }
-            for img in Images.recent()
+            for img in data["recent"]
         ],
     }

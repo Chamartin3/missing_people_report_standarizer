@@ -48,9 +48,11 @@ class _Images(Manager[Image, ImageData]):
             count_q = select(func.count()).select_from(Image)
             rows_q = select(Image).order_by(col(Image.id).desc())
             if processed is not None:
-                cond = col(Image.processed_at).is_not(None) if processed else col(
-                    Image.processed_at
-                ).is_(None)
+                cond = (
+                    col(Image.processed_at).is_not(None)
+                    if processed
+                    else col(Image.processed_at).is_(None)
+                )
                 count_q = count_q.where(cond)
                 rows_q = rows_q.where(cond)
             total = int(s.exec(count_q).one())

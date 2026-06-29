@@ -3,11 +3,17 @@ from datetime import UTC, datetime
 from typing_extensions import TypedDict
 
 from facefinder.constants.enums import PersonStatus, ReportKind
-from facefinder.constants.types import CommentData, FaceData, PersonData, ReportData
-from facefinder.data import Comments, Faces, Persons, Reports
+from facefinder.constants.types import (
+    CommentData,
+    FaceData,
+    ImageData,
+    PersonData,
+    ReportData,
+)
+from facefinder.data import Comments, Faces, Images, Persons, Reports
 from facefinder.services.base import BaseService
 
-__all__ = ["CasefileResult", "CasefileService"]
+__all__ = ["CasefileResult", "CasefileService", "DashboardData"]
 
 
 class CasefileResult(TypedDict):
@@ -15,6 +21,13 @@ class CasefileResult(TypedDict):
     faces: list[FaceData]
     reports: list[ReportData]
     comments: list[CommentData]
+
+
+class DashboardData(TypedDict):
+    images: dict[str, int]  # total, processed, unprocessed
+    faces_unassigned: int
+    people: int
+    recent: list[ImageData]
 
 
 class CasefileService(BaseService):
@@ -48,11 +61,17 @@ class CasefileService(BaseService):
         )
 
     def list_persons(self) -> list[PersonData]:
-        return [
-            p
-            for p in Persons.all()
-            if p.deleted_at is None and p.merged_into is None
-        ]
+        return [p for p in Persons.all() if p.deleted_at is None and p.merged_into is None]
+
+    def dashboard(self) -> DashboardData:
+        # ponytail: counting via len(all()) is fine at this scale; swap for a
+        # COUNT query if the person table ever grows past a few thousand rows.
+        return {
+            "images": Images.stats(),
+            "faces_unassigned": Faces.count_unidentified(),
+            "people": len(Persons.all()),
+            "recent": Images.recent(),
+        }
 
     def get(self, person_id: int) -> CasefileResult | None:
         person = Persons.get(person_id)

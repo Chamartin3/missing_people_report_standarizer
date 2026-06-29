@@ -4,10 +4,8 @@ from fastapi import APIRouter, Depends, HTTPException, Response
 from typing_extensions import TypedDict
 
 from facefinder.api.deps import identify_service
-from facefinder.constants.enums import ConfirmationLevel, StorageKind
+from facefinder.constants.enums import ConfirmationLevel
 from facefinder.constants.types import FaceData
-from facefinder.data import Faces, Persons
-from facefinder.data.storage import open_bytes
 from facefinder.services.identify import IdentifyService
 
 router = APIRouter(prefix="/faces", tags=["faces"])
@@ -103,7 +101,7 @@ def route_list(
 ) -> FaceListResponse:
     # assigned: "all" | "yes" | "no". person_id, when given, overrides it.
     flag = {"yes": True, "no": False}.get(assigned)
-    faces, total = Faces.page(
+    faces, total = svc.list_faces(
         assigned=flag,
         person_id=person_id,
         confirmation=confirmation or None,
@@ -113,7 +111,7 @@ def route_list(
     return {
         "faces": [_face_dict(f) for f in faces],
         "total": total,
-        "unidentified": Faces.count_unidentified(),
+        "unidentified": svc.count_unidentified(),
     }
 
 
@@ -122,13 +120,13 @@ def route_get(
     face_id: int,
     svc: IdentifyService = Depends(identify_service),
 ) -> FaceDetailResponse:
-    face = Faces.get(face_id)
+    face = svc.get_face(face_id)
     if face is None:
         raise HTTPException(status_code=404, detail="face not found")
 
-    person = None
+    person: dict[str, object] | None = None
     if face.person_id is not None:
-        p = Persons.get(face.person_id)
+        p = svc.get_person(face.person_id)
         if p is not None:
             person = {"id": p.id, "display_name": p.display_name, "status": p.status}
 
@@ -139,7 +137,7 @@ def route_get(
     if face.person_id is None:
         seen: set[object] = set()
         # over-fetch so threshold + dedup still leave a useful number.
-        for hit in Faces.nearest(face.embedding, k=48, exclude_id=face_id):
+        for hit in svc.nearest_faces(face.embedding, k=48, exclude_id=face_id):
             similarity = round(1.0 - hit.distance, 4)
             if similarity < SIMILAR_MIN:
                 break  # ordered by similarity desc — nothing below will qualify
@@ -149,7 +147,7 @@ def route_get(
             if key in seen:
                 continue
             seen.add(key)
-            named = Persons.get(hit.person_id) if hit.person_id is not None else None
+            named = svc.get_person(hit.person_id) if hit.person_id is not None else None
             similar.append(
                 {
                     "face_id": hit.id,
@@ -167,11 +165,14 @@ def route_get(
 
 
 @router.get("/{face_id}/crop")
-def route_crop(face_id: int) -> Response:
-    face = Faces.get(face_id)
-    if face is None or face.crop_path is None:
+def route_crop(
+    face_id: int,
+    svc: IdentifyService = Depends(identify_service),
+) -> Response:
+    crop = svc.crop_bytes(face_id)
+    if crop is None:
         raise HTTPException(status_code=404, detail="crop not found")
-    return Response(open_bytes(StorageKind.FACES, face.crop_path), media_type="image/jpeg")
+    return Response(crop, media_type="image/jpeg")
 
 
 @router.post("/{face_id}/assign")

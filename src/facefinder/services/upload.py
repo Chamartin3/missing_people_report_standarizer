@@ -94,3 +94,19 @@ class UploadService(BaseService):
         identifier = IdentifyService(self.actor)
         candidates = [identifier.identify(f.embedding, exclude_face_id=f.id) for f in faces]
         return {"image": image, "faces": faces, "candidates": candidates}
+
+    # Read-only accessors so API routers stay a shell over services.
+    def list_images(
+        self, limit: int = 24, offset: int = 0, processed: bool | None = None
+    ) -> tuple[list[ImageData], int]:
+        return Images.page(limit=limit, offset=offset, processed=processed)
+
+    def get_image(self, image_id: int) -> ImageData | None:
+        return Images.get(image_id)
+
+    def image_bytes(self, image_id: int) -> tuple[bytes, str] | None:
+        """Raw image bytes + format, or None if the image is gone."""
+        image = Images.get(image_id)
+        if image is None:
+            return None
+        return open_bytes(StorageKind.IMAGES, image.path), image.format or "jpeg"

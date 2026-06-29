@@ -45,21 +45,15 @@ class Face(SQLModel, table=True):
 class _Faces(Manager[Face, FaceData]):
     def for_person(self, person_id: int) -> list[FaceData]:
         with scope() as s:
-            return self._many(
-                list(s.exec(select(Face).where(Face.person_id == person_id)).all())
-            )
+            return self._many(list(s.exec(select(Face).where(Face.person_id == person_id)).all()))
 
     def unassigned(self) -> list[FaceData]:
         with scope() as s:
-            return self._many(
-                list(s.exec(select(Face).where(col(Face.person_id).is_(None))).all())
-            )
+            return self._many(list(s.exec(select(Face).where(col(Face.person_id).is_(None))).all()))
 
     def for_image(self, image_id: int) -> list[FaceData]:
         with scope() as s:
-            return self._many(
-                list(s.exec(select(Face).where(Face.image_id == image_id)).all())
-            )
+            return self._many(list(s.exec(select(Face).where(Face.image_id == image_id)).all()))
 
     def page(
         self,

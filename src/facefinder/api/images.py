@@ -4,9 +4,6 @@ from fastapi import APIRouter, Depends, File, Form, HTTPException, Response, Upl
 from typing_extensions import TypedDict
 
 from facefinder.api.deps import ocr_service, upload_service
-from facefinder.constants.enums import StorageKind
-from facefinder.data import Images
-from facefinder.data.storage import open_bytes
 from facefinder.services.ocr import OcrService
 from facefinder.services.upload import UploadService
 
@@ -55,9 +52,12 @@ class ImageListResponse(TypedDict):
 
 @router.get("")
 def route_list(
-    limit: int = 24, offset: int = 0, processed: bool | None = None
+    limit: int = 24,
+    offset: int = 0,
+    processed: bool | None = None,
+    svc: UploadService = Depends(upload_service),
 ) -> ImageListResponse:
-    images, total = Images.page(limit=limit, offset=offset, processed=processed)
+    images, total = svc.list_images(limit=limit, offset=offset, processed=processed)
     return {
         "images": [
             {
@@ -129,14 +129,15 @@ def route_process(
 
 
 @router.get("/{image_id}/file")
-def route_image_file(image_id: int) -> Response:
-    image = Images.get(image_id)
-    if image is None:
+def route_image_file(
+    image_id: int,
+    svc: UploadService = Depends(upload_service),
+) -> Response:
+    result = svc.image_bytes(image_id)
+    if result is None:
         raise HTTPException(status_code=404, detail="image not found")
-    return Response(
-        open_bytes(StorageKind.IMAGES, image.path),
-        media_type=f"image/{image.format or 'jpeg'}",
-    )
+    data, fmt = result
+    return Response(data, media_type=f"image/{fmt}")
 
 
 class OcrResponse(TypedDict):

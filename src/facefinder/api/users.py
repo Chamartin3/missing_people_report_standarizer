@@ -66,9 +66,10 @@ def route_update(
         updated = svc.set_active(user_id, bool(body["is_active"]))
     if "role" in body:
         updated = svc.set_role(user_id, UserRole(body["role"]))
-    if body.get("new_password"):
+    new_password = body.get("new_password")
+    if new_password:
         try:
-            updated = svc.reset_password(user_id, body["new_password"])
+            updated = svc.reset_password(user_id, new_password)
         except ValueError as e:
             return {"error": str(e)}
     if updated is None:
