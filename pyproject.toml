@@ -1,0 +1,110 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/facefinder"]
+
+[project]
+name = "facefinder"
+version = "0.1.0"
+requires-python = ">=3.11"
+dependencies = [
+    "insightface",
+    "onnxruntime",
+    "numpy",
+    "pillow",
+    "pillow-heif",
+    "pytesseract",
+    "sqlmodel",
+    "pgvector",
+    "psycopg[binary]",
+    "fastapi",
+    "uvicorn[standard]",
+    "python-multipart",
+    "pwdlib[argon2]",
+    "pyjwt",
+    "fsspec",
+    "s3fs",
+    "pydantic-settings",
+]
+
+[dependency-groups]
+dev = ["pyright", "import-linter", "ruff", "pytest"]
+
+[tool.pyright]
+include = ["src/facefinder"]
+typeCheckingMode = "strict"
+reportMissingTypeStubs = false
+reportMissingModuleSource = false
+
+# Relax ONLY unknown-TYPE checks, and ONLY for the two packages that wrap
+# genuinely-dynamic third-party libraries: recognition (insightface/numpy) and
+# db (SQLAlchemy/pgvector query builders return Unknown). Never relax
+# reportAttributeAccessIssue (that hides real attribute typos) or missing-imports.
+# auth/services/api stay fully strict — fix their few dynamic lines with a
+# targeted `# type: ignore`, not a whole-package exemption.
+[[tool.pyright.executionEnvironments]]
+root = "src/facefinder/domains/recognition"
+reportUnknownMemberType = false
+reportUnknownVariableType = false
+reportUnknownArgumentType = false
+
+[[tool.pyright.executionEnvironments]]
+root = "src/facefinder/data"
+reportUnknownMemberType = false
+reportUnknownVariableType = false
+reportUnknownArgumentType = false
+
+[tool.ruff]
+target-version = "py311"
+line-length = 100
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "N", "W", "UP"]
+
+[tool.ruff.format]
+quote-style = "double"
+indent-style = "space"
+
+[tool.importlinter]
+root_package = "facefinder"
+
+[[tool.importlinter.contracts]]
+name = "Layered architecture"
+type = "layers"
+layers = [
+    "facefinder.api",
+    "facefinder.services",
+    "facefinder.domains | facefinder.data",
+]
+
+[[tool.importlinter.contracts]]
+name = "data is isolated"
+type = "forbidden"
+source_modules = ["facefinder.data"]
+forbidden_modules = [
+    "facefinder.api",
+    "facefinder.services",
+    "facefinder.domains",
+]
+
+[[tool.importlinter.contracts]]
+name = "domains are pure"
+type = "forbidden"
+source_modules = ["facefinder.domains"]
+forbidden_modules = [
+    "facefinder.api",
+    "facefinder.services",
+    "facefinder.data",
+]
+
+[[tool.importlinter.contracts]]
+name = "api is a shell"
+type = "forbidden"
+source_modules = ["facefinder.api"]
+forbidden_modules = [
+    "facefinder.domains",
+    "facefinder.data",
+]
+allow_indirect_imports = true

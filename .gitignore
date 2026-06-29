@@ -1,0 +1,26 @@
+# Secrets / seeded credentials — never commit. Keep .env.example as the template.
+.env
+.env.*
+!.env.example
+*.seed
+seeds/
+.seeds/
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+.pytest_cache/
+.ruff_cache/
+.import_linter_cache/
+
+# Node / web build
+web/node_modules/
+web/dist/
+
+# Local storage bytes (uploaded images + face crops)
+storage/
+
+# Sample/seed images and local working notes — not part of the repo
+sample_images/
+workdir/
